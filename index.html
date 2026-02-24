@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>能吃教教主模拟器</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,sans-serif}
+body{background:#111;color:#e6e6e6;max-width:440px;margin:0 auto;padding:20px}
+#startScreen {
+position: fixed;
+top:0; left:0; width:100%; height:100%;
+background:#111;
+display:flex;
+flex-direction:column;
+align-items:center;
+justify-content:center;
+z-index:9999;
+}
+#startScreen h1 {
+color:#ffcc00;
+margin-bottom:30px;
+font-size:28px;
+}
+.start-btn {
+	width:220px;
+	padding:14px;
+	margin:8px;
+	border:none;
+	border-radius:10px;
+	background:#252252;
+	color:#ffcc00;
+	font-size:16px;
+	cursor:pointer;
+}
+.log-btn {
+	background:#006699;
+	color:white;
+}
+#logPanel {
+background:#1a1a1a;
+border-radius:12px;
+padding:20px;
+margin-top:20px;
+width:90%;
+max-width:380px;
+display:none;
+}
+.panel{background:#1a1a1a;border-radius:14px;padding:18px;margin-bottom:14px}
+.title{font-size:20px;font-weight:700;color:#ffcc00;margin-bottom:12px}
+.row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #2a2a2a}
+.log{background:#181818;border-radius:8px;padding:12px;height:160px;overflow-y:auto;font-size:14px;line-height:1.5}
+.btn{width:100%;padding:14px;margin:6px 0;border:none;border-radius:10px;background:#252252;color:#ffcc00;font-size:16px;cursor:pointer}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+.next-month{background:#0088cc;color:white}
+.win{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:999;color:#00ff88}
+.gameover{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:999;color:#ff4444}
+.restart,.newgame{padding:12px 24px;border:none;border-radius:10px;font-size:16px;cursor:pointer}
+.restart{background:#ff4444;color:#fff}
+.newgame{background:#00aa66;color:#fff}
+</style>
+</head>
+<body>
+
+<!-- ====================== 开始界面 ====================== -->
+<div id="startScreen">
+<h1>能吃教教主模拟器  目标：从2025开学到2028中考</h1>
+<button class="start-btn" onclick="startGame()">开始游戏（V26.26）</button>
+<button class="start-btn log-btn" onclick="showLog()">更新日志</button>
+<div id="logPanel">
+<div id="logPanel">
+  <div class="title">更新日志 V26.26</div>
+  <p>? 新增开始界面与版本号</p>
+  <p>? 初始声誉调整为 0</p>
+  <p>? 升级增加信徒数量限制</p>
+  <p>? 未宴请时声誉降低且信徒流失</p>
+  <p>? 信徒为 0 时 Game Over</p>
+</div>
+<div class="gameover" id="go">
+<h1>Game Over</h1>
+<p id="goreason"></p>
+<button class="restart" onclick="restart()">重生</button>
+</div>
+
+<div class="win" id="win">
+<h1>恭喜你！胜利了！</h1>
+<p>能吃教屹立不倒，你成为一代干饭教主！</p>
+<button class="newgame" onclick="restart()">新的传教</button>
+</div>
+
+<div class="panel">
+<div class="title"> 能吃教 · 总坛 </div>
+<div class="row"><span>当前时间</span><span id="dateText">2025年9月</span></div>
+<div class="row"><span>资金</span><span id="money">150</span></div>
+<div class="row"><span>信徒</span><span id="believer">5</span></div>
+<div class="row"><span>声誉</span><span id="repute">0</span></div>
+<div class="row"><span>教会等级</span><span id="level">1</span></div>
+<div class="row"><span>行动点数</span><span id="ap">3</span></div>
+</div>
+
+<div class="panel">
+<button class="btn" id="hire">招募教徒</button>
+<button class="btn" id="upgrade">升级教会</button>
+<button class="btn" id="party">宴请众教徒</button>
+<button class="btn next-month" id="nextMonth">进入下个月</button>
+</div>
+
+<div class="panel">
+<div class="title">圣典日志</div>
+<div class="log" id="log"></div>
+</div>
+
+<script>
+// 开始界面控制
+function startGame() {
+	document.getElementById('startScreen').style.display = 'none'
+}
+function showLog() {
+	document.getElementById('logPanel').style.display = 'block'
+}
+
+// 游戏本体（完全没动）
+let data = {
+	year: 2025, month: 9,
+	money: 150, believer: 5, repute: 0,
+	level: 1, ap: 3, log: [], hasPartyThisMonth: false
+}
+
+const $ = id => document.getElementById(id)
+const keys = ['money','believer','repute','level','ap']
+
+function save() { localStorage.setItem('nengchi_final', JSON.stringify(data)) }
+function updateDate() { $('dateText').innerText = `${data.year}年${data.month}月` }
+
+function render() {
+	keys.forEach(k => $(k).innerText = data[k])
+	updateDate()
+	$('log').innerHTML = data.log.slice(-8).join('<br>')
+	$('log').scrollTop = $('log').scrollHeight
+	const canAct = data.ap > 0
+	$('hire').disabled = !canAct
+	$('upgrade').disabled = !canAct
+	$('party').disabled = !canAct
+	checkGameOver()
+	checkWin()
+}
+
+function log(text) { data.log.push('? '+text); render() }
+
+function checkWin() {
+	if (data.year>2028 || (data.year===2028&&data.month>=6)) $('win').style.display='flex'
+}
+
+function checkGameOver() {
+	if (data.believer <= 0) showGO("干饭信徒跑光，教会覆灭")
+		if (data.money<=0) showGO("资金耗尽，你跑路了")
+			if (data.repute <= -5) showGO("声誉太差，你被教徒背刺了")
+}
+
+function showGO(reason) {
+	$('goreason').innerText = reason
+	$('go').style.display = 'flex'
+}
+
+function restart() {
+	data = {year:2025,month:9,money:150,believer:5,repute:0,level:1,ap:3,log:[],hasPartyThisMonth:false}
+	save(); render(); $('go').style.display='none'; $('win').style.display='none'
+}
+
+function triggerEvent() {
+	if (Math.random()<0.35) {
+		const r = Math.random()
+		if (r<0.35) { const a=2+data.level; data.believer+=a; log(`信徒慕名而来 +${a}`) }
+		else if (r<0.5) { data.repute += 2; log("教义传播，声誉+2") }
+		else if (r<0.75) { data.money += data.believer*1; log(`信徒供奉 +${data.believer*1}`) }
+		else { data.money -= 3*data.level; log("神秘仪式花费资金") }
+	}
+}
+
+function useAP() { data.ap--; save() }
+
+$('hire').onclick = () => {
+	if (data.ap<=0) return
+		const cost = 40 + 10 * data.level
+		if (data.money<cost) { log("资金不足，无法招募") ;return }
+	data.money -= cost
+	const add = 3 + data.level
+	data.believer += add
+	log(`成功招募干饭信徒 +${add}`)
+	useAP()
+	triggerEvent()
+}
+
+$('upgrade').onclick = () => {
+	if (data.ap<=0) return
+		const needBeliever = data.level * 10
+		if (data.believer < needBeliever) {
+		log(`升级需要至少 ${needBeliever} 位干饭信徒！`)
+		return
+	}
+	const costMoney = 200 + 50 * data.level
+	const costRepute = 20 + 5 * data.level
+	if (data.money<costMoney || data.repute<costRepute) {
+		log(`升级需资金${costMoney}、声誉${costRepute}，条件不足！`)
+		return
+	}
+	data.money -= costMoney
+	data.repute -= costRepute
+	data.level +=1
+	log(`恭喜！能吃教升至${data.level}级！`)
+	useAP()
+}
+
+$('party').onclick = () => {
+	if (data.ap<=0) return
+		const cost = data.believer * 5
+		if (data.money<cost) { log("资金不够，摆不起宴席！") ;return }
+	data.money -= cost
+	data.repute += 2 + Math.floor(data.level/2)
+	data.hasPartyThisMonth = true
+	log("盛大宴请完成，教徒归心，声誉提升！")
+	useAP()
+	triggerEvent()
+}
+
+$('nextMonth').onclick = () => {
+	const monthIncome = 100 + 20 * data.level
+	data.money += monthIncome
+	log(`月度结算：教会收益 +${monthIncome}`)
+	
+	if (!data.hasPartyThisMonth) {
+		data.repute -= 1
+		const lose = 1
+		data.believer -= lose
+		log(`未宴请，人心涣散，流失信徒 ${lose} 人！`)
+		log("本月未宴请，声誉-1")
+	}
+	
+	data.month++
+	if (data.month>12) { data.month=1; data.year++ }
+	data.ap = 3
+	data.hasPartyThisMonth = false
+	save()
+	render()
+}
+
+render()
+</script>
+</body>
+</html>
